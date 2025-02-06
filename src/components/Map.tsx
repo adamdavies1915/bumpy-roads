@@ -5,7 +5,7 @@ import "./map.css";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer } from "react-leaflet";
 
-export const Map = () => {
+const Map = () => {
   return (
     <div className="w-2xl">
       <MapContainer
@@ -23,3 +23,5 @@ export const Map = () => {
     </div>
   );
 };
+
+export default Map;
