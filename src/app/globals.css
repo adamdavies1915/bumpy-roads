@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+@theme {
+  --gap: clamp(1rem, 4vw, 2rem);
+  --full: minmax(var(--gap), 1fr);
+  --content: min(clamp(30rem, 52vw, 60rem), 100% - var(--gap) * 2);
+  --popout: minmax(0, 2rem);
+  --feature: minmax(0, 12vw);
+  --content-inset: min(clamp(30rem, 52vw, 60rem), 100% - var(--gap));
+
+  --grid-column-content: content;
+  --grid-column-popout: popout;
+  --grid-column-feature: feature;
+  --grid-column-full: full;
+  --grid-column-feature-left: full-start \feature-end;
+
+  --grid-template-columns-breakout: [full-start] var(--full) [feature-start]
+    var(--feature) [popout-start] var(--popout) [content-start] var(--content)
+    [content-end] var(--popout) [popout-end] var(--feature) [feature-end]
+    var(--full) [full-end];
+  --grid-template-columns-breakout-feature-left: [full-start] var(--full)
+    [feature-start] var(--feature) [popout-start] var(--popout) [content-start]
+    var(--content-inset) [content-end] var(--popout) [popout-end] var(--feature)
+    [feature-end full-end];
+}
+
 :root {
   line-height: 1.5;
   font-weight: 400;
