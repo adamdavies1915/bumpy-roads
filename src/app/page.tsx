@@ -6,7 +6,7 @@ const MapNoSSR = dynamic(() => import("@/components/Map"), { ssr: false });
 
 export default function Home() {
   return (
-    <main className="col-content h-screen justify-center items-center flex flex-col">
+    <main className="col-content flex h-screen flex-col items-center justify-center">
       hello world
       <MapNoSSR />
     </main>

@@ -19,7 +19,7 @@ export const getFeaturesWithinBox = async (opts: {
   bbox: [number, number, number, number];
 }): Promise<Array<{ ppe: number; loc: { coordinates: [number, number] } }>> => {
   const collection = await clientPromise.then((client) =>
-    client.db(dbName).collection(collectionName)
+    client.db(dbName).collection(collectionName),
   );
 
   const { bbox, zoom } = opts;

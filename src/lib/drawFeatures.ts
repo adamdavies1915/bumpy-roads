@@ -12,7 +12,7 @@ const CIRCLE_RADIUS = 4;
 export const drawFeatures = (
   zoom: number,
   bbox: [number, number, number, number],
-  features: Array<{ ppe: number; loc: { coordinates: [number, number] } }>
+  features: Array<{ ppe: number; loc: { coordinates: [number, number] } }>,
 ): Promise<Buffer> => {
   const sphericalMercator = new SphericalMercator({});
   const canvas = Canvas.createCanvas(256, 256);

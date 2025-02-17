@@ -29,7 +29,7 @@ export default function RootLayout({
         className={clsx(
           geistSans.variable,
           geistMono.variable,
-          "antialiased grid grid-cols-breakout"
+          "grid-cols-breakout grid antialiased",
         )}
       >
         {children}
