@@ -1,245 +1,221 @@
+import { NextRequest } from "next/server";
 import { jest } from "@jest/globals";
-import { NextRequest, NextResponse } from "next/server";
-import { HttpStatus, CreateFeatureRequest } from "@/types/api";
+import { POST } from "@/app/api/v1/features/route";
 
-// Import the error classes to use in mock
-import { ApiAuthError, ApiRequestError } from "@/lib/apiUtils";
-
-// Mock NextResponse.json
-const mockNextResponseJson = jest.fn();
-
-// Create a properly typed mock version of next/server
-jest.mock("next/server", () => {
-  // Type the actual module import
-  const originalModule = jest.requireActual("next/server") as typeof import("next/server");
-  
-  return {
-    ...originalModule,
-    NextResponse: {
-      ...originalModule.NextResponse,
-      json: (body: unknown, options?: ResponseInit): NextResponse => {
-        mockNextResponseJson(body, options);
-        const response = new originalModule.NextResponse(
-          JSON.stringify(body), 
-          options
-        );
-        return response;
-      }
-    }
-  };
-});
-
-// Make sure to mock the modules BEFORE importing the handler
-jest.mock("@/lib/apiUtils", () => ({
+// Mock dependencies
+jest.mock("@/lib/apiAuth", () => ({
   validateApiKey: jest.fn().mockReturnValue(true),
-  parseRequestBody: jest.fn().mockImplementation(async (req: unknown) => {
-    return (req as { bodyData: unknown }).bodyData;
-  }),
-  createSuccessResponse: jest.fn().mockImplementation((data: Record<string, unknown>) => {
-    return NextResponse.json({
-      success: true,
-      version: 1.0,
-      ...data
-    }, { status: 200 });
-  }),
-  createErrorResponse: jest.fn().mockImplementation((message: string, status = HttpStatus.SERVER_ERROR, details?: unknown) => {
-    return NextResponse.json({
-      success: false,
-      error: message,
-      version: 1.0,
-      ...(details ? { details } : {})
-    }, { status });
-  }),
-  // Export the error classes for instanceof checks
-  ApiAuthError,
-  ApiRequestError
+  parseRequestBody: jest.fn(),
+  createApiResponse: jest.fn((success, data, error, details) => ({ 
+    success, 
+    ...(data || {}), 
+    ...(error ? { error } : {}),
+    ...(details ? { details } : {})
+  })),
+  ApiAuthError: class ApiAuthError extends Error {
+    constructor(message: string, public statusCode = 401) {
+      super(message);
+      this.name = "ApiAuthError";
+    }
+  },
+  ApiRequestError: class ApiRequestError extends Error {
+    constructor(message: string, public statusCode = 400, public details?: any) {
+      super(message);
+      this.name = "ApiRequestError";
+    }
+  },
+  API_CONSTANTS: {
+    STATUS_OK: 200,
+    STATUS_BAD_REQUEST: 400,
+    STATUS_UNAUTHORIZED: 401,
+    STATUS_SERVER_ERROR: 500
+  }
 }));
 
-// Mock the geoUtils functions
 jest.mock("@/lib/geoUtils", () => ({
   isValidCoordinates: jest.fn().mockReturnValue(true),
   isValidPPE: jest.fn().mockReturnValue(true),
-  generateAggregateId: jest.fn().mockReturnValue(500000)
+  generateAggregateId: jest.fn().mockReturnValue(12345)
 }));
 
-// Define MongoDB mock interfaces
-interface InsertOneResult {
-  acknowledged: boolean;
-  insertedId: string;
-}
-
-// Create MongoDB mocks - avoiding circular references
-const mockInsertOne = jest.fn<(doc: unknown) => Promise<InsertOneResult>>();
-const mockCollection = jest.fn(() => ({
-  insertOne: mockInsertOne
-}));
-const mockDb = jest.fn(() => ({
-  collection: mockCollection
-}));
-const mockClient = {
-  db: mockDb
-};
-const mockClientPromise = Promise.resolve(mockClient);
-
-jest.mock("@/lib/db/mongodb", () => ({
-  __esModule: true,
-  default: mockClientPromise
-}));
-
-// Import the handler after mocking
-import { POST } from "./route";
-
-// Import the mocked modules for access in tests
-import * as apiUtils from "@/lib/apiUtils";
-import * as geoUtils from "@/lib/geoUtils";
-
-// Helper function to create a mock request
-function createMockRequest(bodyData: CreateFeatureRequest): NextRequest {
+// Mock DatabaseService
+const mockAddFeature = jest.fn();
+jest.mock("@/app/services/DatabaseService", () => {
   return {
-    headers: {
-      get: jest.fn<(key: string) => string | null>().mockImplementation((key: string) => {
-        if (key === "SRS-APIKey") return "valid-api-key";
-        return null;
-      })
-    },
-    bodyData, // This will be accessed by our mocked parseRequestBody
-    text: jest.fn<() => Promise<string>>().mockResolvedValue(JSON.stringify(bodyData)),
-    json: jest.fn<() => Promise<CreateFeatureRequest>>().mockResolvedValue(bodyData)
-  } as unknown as NextRequest;
-}
+    DatabaseService: jest.fn().mockImplementation(() => {
+      return {
+        addFeature: mockAddFeature
+      };
+    })
+  };
+});
 
-describe("POST /api/features", () => {
+// Import mocked dependencies for use in tests
+const { validateApiKey, parseRequestBody, ApiAuthError, ApiRequestError } = jest.requireMock("@/lib/apiAuth") as {
+  validateApiKey: jest.Mock,
+  parseRequestBody: jest.Mock,
+  ApiAuthError: typeof Error,
+  ApiRequestError: typeof Error
+};
+const { isValidCoordinates, isValidPPE } = jest.requireMock("@/lib/geoUtils") as {
+  isValidCoordinates: jest.Mock,
+  isValidPPE: jest.Mock
+};
+
+describe("Features API POST endpoint", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Ensure our mocks are properly reset and configured
-    (apiUtils.validateApiKey as jest.Mock).mockReturnValue(true);
-    (geoUtils.isValidCoordinates as jest.Mock).mockReturnValue(true);
-    (geoUtils.isValidPPE as jest.Mock).mockReturnValue(true);
-    
-    // Default mock implementation for MongoDB
-    mockInsertOne.mockResolvedValue({ 
-      acknowledged: true, 
-      insertedId: "mock-id-123"
-    });
   });
+
+  // Helper to create mock request
+  const createMockRequest = (body: any): NextRequest => {
+    return {
+      json: jest.fn().mockResolvedValue(body),
+      headers: new Headers(),
+      text: jest.fn().mockResolvedValue(JSON.stringify(body))
+    } as unknown as NextRequest;
+  };
 
   it("should successfully add a valid feature", async () => {
-    // Create valid feature data
-    const validFeature: CreateFeatureRequest = {
-      ppe: 2.5,
-      loc: {
-        type: "Point",
-        coordinates: [-73.992, 40.7219] as [number, number]
-      },
-      deviceId: "test-device-123"
-    };
-
-    await POST(createMockRequest(validFeature));
-    
-    // Check that NextResponse.json was called correctly
-    expect(mockNextResponseJson).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: true,
-        message: "Feature added successfully",
-        id: "mock-id-123",
-        version: 1.0
-      }),
-      expect.any(Object)
-    );
-    
-    // Verify database was called correctly
-    expect(mockDb).toHaveBeenCalledWith(process.env.MONGODB_DATABASE_NAME);
-    expect(mockCollection).toHaveBeenCalledWith(process.env.MONGODB_COLLECTION_NAME);
-    
-    // Check that the right data was passed to insertOne
-    expect(mockInsertOne).toHaveBeenCalledWith(expect.objectContaining({
-      ...validFeature,
-      timestamp: expect.any(Number),
-      aggregateId: "500000" // String version of our mocked value
-    }));
-  });
-
-  it("should reject invalid data with PPE out of range", async () => {
-    // Set up mock to return false
-    (geoUtils.isValidPPE as jest.Mock).mockReturnValueOnce(false);
-    
-    const invalidFeature: CreateFeatureRequest = {
-      ppe: 15, // Invalid value
-      loc: {
-        type: "Point",
-        coordinates: [-73.992, 40.7219] as [number, number]
-      }
-    };
-
-    await POST(createMockRequest(invalidFeature));
-    
-    // Check response
-    expect(mockNextResponseJson).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: "Invalid coordinates or PPE value",
-        version: 1.0
-      }),
-      expect.objectContaining({ status: HttpStatus.BAD_REQUEST })
-    );
-    
-    // Database should not be called
-    expect(mockInsertOne).not.toHaveBeenCalled();
-  });
-
-  it("should reject invalid coordinates", async () => {
-    // Set up mock to return false
-    (geoUtils.isValidCoordinates as jest.Mock).mockReturnValueOnce(false);
-    
-    const invalidFeature: CreateFeatureRequest = {
+    // Setup valid feature data
+    const featureData = {
       ppe: 5,
       loc: {
         type: "Point",
-        coordinates: [-200, 40.7219] as [number, number] // Longitude out of range
+        coordinates: [-73.992, 40.7219]
       }
     };
 
-    await POST(createMockRequest(invalidFeature));
-    
-    // Check response
-    expect(mockNextResponseJson).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: "Invalid coordinates or PPE value",
-        version: 1.0
-      }),
-      expect.objectContaining({ status: HttpStatus.BAD_REQUEST })
-    );
-    
-    // Database should not be called
-    expect(mockInsertOne).not.toHaveBeenCalled();
+    // Mock parseRequestBody to return valid data
+    parseRequestBody.mockResolvedValue(featureData);
+
+    // Mock database response
+    mockAddFeature.mockResolvedValue({ 
+      acknowledged: true, 
+      insertedId: 'mock-id-123'
+    });
+
+    // Execute request
+    const mockReq = createMockRequest(featureData);
+    const response = await POST(mockReq);
+    const result = await response.json();
+
+    // Verify response
+    expect(response.status).toBe(200);
+    expect(result.success).toBe(true);
+    expect(result.message).toBe("Feature added successfully");
+    expect(result.id).toBe('mock-id-123');
+
+    // Verify our mocks were called
+    expect(validateApiKey).toHaveBeenCalledWith(mockReq);
+    expect(parseRequestBody).toHaveBeenCalledWith(mockReq);
+    expect(isValidCoordinates).toHaveBeenCalledWith(-73.992, 40.7219);
+    expect(isValidPPE).toHaveBeenCalledWith(5);
+    expect(mockAddFeature).toHaveBeenCalledWith(featureData);
   });
 
-  it("should handle database errors gracefully", async () => {
-    // Setup mock to throw an error
-    mockInsertOne.mockRejectedValueOnce(
-      new Error("Database connection error")
-    );
-
-    const validFeature: CreateFeatureRequest = {
-      ppe: 2.5,
+  it("should reject invalid feature data", async () => {
+    // Setup invalid feature data (missing required fields)
+    const invalidFeatureData = {
+      // Missing required 'ppe' field
       loc: {
         type: "Point",
-        coordinates: [-73.992, 40.7219] as [number, number]
+        coordinates: [-73.992, 40.7219]
       }
     };
 
-    await POST(createMockRequest(validFeature));
+    // Mock parseRequestBody to return invalid data
+    parseRequestBody.mockResolvedValue(invalidFeatureData);
+
+    // Execute request
+    const mockReq = createMockRequest(invalidFeatureData);
+    const response = await POST(mockReq);
+    const result = await response.json();
+
+    // Verify response indicates failure
+    expect(response.status).toBe(400);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Invalid request data");
     
-    // Check error response
-    expect(mockNextResponseJson).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: "Database connection error",
-        version: 1.0
-      }),
-      expect.objectContaining({ status: HttpStatus.SERVER_ERROR })
-    );
+    // DatabaseService should not be called with invalid data
+    expect(mockAddFeature).not.toHaveBeenCalled();
+  });
+
+  it("should handle API authentication errors", async () => {
+    // Mock validateApiKey to throw auth error
+    validateApiKey.mockImplementationOnce(() => {
+      throw new ApiAuthError("Invalid API key", 401);
+    });
+
+    // Execute request
+    const mockReq = createMockRequest({});
+    const response = await POST(mockReq);
+    const result = await response.json();
+
+    // Verify response
+    expect(response.status).toBe(401);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Invalid API key");
+    
+    // Verify subsequent functions were not called
+    expect(parseRequestBody).not.toHaveBeenCalled();
+    expect(mockAddFeature).not.toHaveBeenCalled();
+  });
+
+  it("should handle invalid coordinates", async () => {
+    // Setup feature data with invalid coordinates
+    const featureData = {
+      ppe: 5,
+      loc: {
+        type: "Point",
+        coordinates: [200, 100] // Invalid values
+      }
+    };
+
+    // Mock parseRequestBody to return the feature data
+    parseRequestBody.mockResolvedValue(featureData);
+    
+    // Mock coordinate validation to fail
+    isValidCoordinates.mockReturnValueOnce(false);
+
+    // Execute request
+    const mockReq = createMockRequest(featureData);
+    const response = await POST(mockReq);
+    const result = await response.json();
+
+    // Verify response
+    expect(response.status).toBe(400);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Invalid coordinates or PPE value");
+    
+    // DatabaseService should not be called with invalid coordinates
+    expect(mockAddFeature).not.toHaveBeenCalled();
+  });
+
+  it("should handle database errors", async () => {
+    // Setup valid feature data
+    const featureData = {
+      ppe: 5,
+      loc: {
+        type: "Point",
+        coordinates: [-73.992, 40.7219]
+      }
+    };
+
+    // Mock parseRequestBody to return valid data
+    parseRequestBody.mockResolvedValue(featureData);
+    
+    // Mock database error
+    mockAddFeature.mockRejectedValueOnce(new Error("Database connection error"));
+
+    // Execute request
+    const mockReq = createMockRequest(featureData);
+    const response = await POST(mockReq);
+    const result = await response.json();
+
+    // Verify response
+    expect(response.status).toBe(500);
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Database connection error");
   });
 });

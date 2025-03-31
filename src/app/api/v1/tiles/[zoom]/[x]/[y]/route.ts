@@ -1,6 +1,6 @@
-import { getFeaturesWithinBox } from "@/lib/db/features";
-import { drawFeatures } from "@/lib/drawFeatures";
 import { SphericalMercator } from "@mapbox/sphericalmercator";
+import { drawFeatures } from "@/lib/drawFeatures";
+import { DatabaseService } from "@/app/services/DatabaseService";
 
 export async function GET(
   request: Request,
@@ -12,7 +12,12 @@ export async function GET(
   // w s e n
   const bbox = merc.bbox(Number(x), Number(y.split(".png")[0]), Number(zoom));
 
-  const features = await getFeaturesWithinBox({ zoom: Number(zoom), bbox });
+  // Use DatabaseService to get features
+  const dbService = new DatabaseService();
+  const features = await dbService.getFeaturesWithinBox({ 
+    zoom: Number(zoom), 
+    bbox 
+  });
 
   const pngBuffer = await drawFeatures(Number(zoom), bbox, features);
 

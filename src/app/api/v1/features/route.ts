@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import clientPromise from "@/lib/db/mongodb";
 
-import { generateAggregateId, isValidCoordinates, isValidPPE } from "@/lib/geoUtils";
+import { isValidCoordinates, isValidPPE } from "@/lib/geoUtils";
 import { validateApiKey, parseRequestBody, createApiResponse, API_CONSTANTS, ApiAuthError, ApiRequestError } from "@/lib/apiAuth";
-
-// Database configuration
-const dbName = process.env.MONGODB_DATABASE_NAME!;
-const collectionName = process.env.MONGODB_COLLECTION_NAME!;
+import { DatabaseService } from "@/app/services/DatabaseService";
 
 // Schema validation for incoming data
 const featureSchema = z.object({
@@ -55,16 +51,8 @@ export async function POST(request: NextRequest) {
     // Step 4: Extract validated data
     const featureData = result.data;
     
-    // Step 5: Add timestamp if not provided
-    if (!featureData.timestamp) {
-      featureData.timestamp = Date.now();
-    }
-    
-    // Step 6: Generate aggregateId based on coordinates for resolution filtering
+    // Step 5: Double-check coordinate and PPE validity
     const [lon, lat] = featureData.loc.coordinates;
-    featureData.aggregateId = generateAggregateId(lon, lat).toString();
-    
-    // Double-check coordinate and PPE validity
     if (!isValidCoordinates(lon, lat) || !isValidPPE(featureData.ppe)) {
       return NextResponse.json(
         createApiResponse(false, null, "Invalid coordinates or PPE value"),
@@ -72,12 +60,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Step 7: Connect to database
-    const client = await clientPromise;
-    const collection = client.db(dbName).collection(collectionName);
-    
-    // Step 8: Insert the new feature
-    const insertResult = await collection.insertOne(featureData);
+    // Step 6: Use DatabaseService to add feature
+    const dbService = new DatabaseService();
+    const insertResult = await dbService.addFeature(featureData);
     
     if (!insertResult.acknowledged) {
       return NextResponse.json(
@@ -86,7 +71,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Step 9: Return success response with the inserted ID
+    // Step 7: Return success response with the inserted ID
     return NextResponse.json(
       createApiResponse(true, {
         message: "Feature added successfully",
