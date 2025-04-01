@@ -1,14 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // src/__tests__/api/tiles.test.ts
+import { FeatureData } from "@/types/api";
 import { jest } from "@jest/globals";
-
-// Define Feature type
-type Feature = {
-  ppe: number;
-  loc: {
-    coordinates: [number, number];
-  };
-};
 
 // First set up our mocks
 const mockBbox = [-74.05, 40.7, -73.95, 40.73] as [
@@ -17,9 +10,9 @@ const mockBbox = [-74.05, 40.7, -73.95, 40.73] as [
   number,
   number,
 ];
-const mockFeatures: Feature[] = [
-  { ppe: 1.5, loc: { coordinates: [-74.006, 40.7128] } },
-  { ppe: 3.2, loc: { coordinates: [-73.992, 40.7219] } },
+const mockFeatures: FeatureData[] = [
+  { ppe: 1.5, loc: { type:  "Point", coordinates: [-74.006, 40.7128] } },
+  { ppe: 3.2, loc: { type:  "Point", coordinates: [-73.992, 40.7219] } },
 ];
 const mockPngBuffer = Buffer.from("mock-png-data");
 

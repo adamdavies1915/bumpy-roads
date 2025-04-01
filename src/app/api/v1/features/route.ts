@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     
     if (!result.success) {
       return NextResponse.json(
-        authService.createApiResponse(false, null, "Invalid request data", result.error.format()),
+        authService.createApiResponse(false, undefined, "Invalid request data", result.error.format()),
         { status: API_CONSTANTS.STATUS_BAD_REQUEST }
       );
     }
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const [lon, lat] = featureData.loc.coordinates;
     if (!isValidCoordinates(lon, lat) || !isValidPPE(featureData.ppe)) {
       return NextResponse.json(
-        authService.createApiResponse(false, null, "Invalid coordinates or PPE value"),
+        authService.createApiResponse(false, undefined, "Invalid coordinates or PPE value"),
         { status: API_CONSTANTS.STATUS_BAD_REQUEST }
       );
     }
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     
     if (!insertResult.acknowledged) {
       return NextResponse.json(
-        authService.createApiResponse(false, null, "Failed to insert data"),
+        authService.createApiResponse(false, undefined, "Failed to insert data"),
         { status: API_CONSTANTS.STATUS_SERVER_ERROR }
       );
     }
@@ -90,21 +90,21 @@ export async function POST(request: NextRequest) {
     // Handle specific error types
     if (error instanceof ApiAuthError) {
       return NextResponse.json(
-        authService.createApiResponse(false, null, error.message),
+        authService.createApiResponse(false, undefined, error.message),
         { status: error.statusCode }
       );
     }
     
     if (error instanceof ApiRequestError) {
       return NextResponse.json(
-        authService.createApiResponse(false, null, error.message, error.details),
+        authService.createApiResponse(false, undefined, error.message, error.details),
         { status: error.statusCode }
       );
     }
     
     // Handle generic errors
     return NextResponse.json(
-      authService.createApiResponse(false, null, 
+      authService.createApiResponse(false, undefined, 
         error instanceof Error ? error.message : "Unknown server error"
       ),
       { status: API_CONSTANTS.STATUS_SERVER_ERROR }
