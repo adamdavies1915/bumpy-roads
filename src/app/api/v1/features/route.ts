@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { isValidCoordinates, isValidPPE } from "@/lib/geoUtils";
-import { validateApiKey, parseRequestBody, createApiResponse, API_CONSTANTS, ApiAuthError, ApiRequestError } from "@/lib/apiAuth";
+import { API_CONSTANTS, ApiAuthError, ApiRequestError, authService } from "@/app/services/AuthService";
 import { DatabaseService } from "@/app/services/DatabaseService";
+
 
 // Schema validation for incoming data
 const featureSchema = z.object({
@@ -33,17 +34,17 @@ const featureSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Step 1: Validate API key
-    validateApiKey(request);
+    authService.validateApiKey(request);
     
     // Step 2: Parse request body
-    const body = await parseRequestBody(request);
+    const body = await authService.parseRequestBody(request);
     
     // Step 3: Validate data against schema
     const result = featureSchema.safeParse(body);
     
     if (!result.success) {
       return NextResponse.json(
-        createApiResponse(false, null, "Invalid request data", result.error.format()),
+        authService.createApiResponse(false, null, "Invalid request data", result.error.format()),
         { status: API_CONSTANTS.STATUS_BAD_REQUEST }
       );
     }
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
     const [lon, lat] = featureData.loc.coordinates;
     if (!isValidCoordinates(lon, lat) || !isValidPPE(featureData.ppe)) {
       return NextResponse.json(
-        createApiResponse(false, null, "Invalid coordinates or PPE value"),
+        authService.createApiResponse(false, null, "Invalid coordinates or PPE value"),
         { status: API_CONSTANTS.STATUS_BAD_REQUEST }
       );
     }
@@ -66,14 +67,14 @@ export async function POST(request: NextRequest) {
     
     if (!insertResult.acknowledged) {
       return NextResponse.json(
-        createApiResponse(false, null, "Failed to insert data"),
+        authService.createApiResponse(false, null, "Failed to insert data"),
         { status: API_CONSTANTS.STATUS_SERVER_ERROR }
       );
     }
     
     // Step 7: Return success response with the inserted ID
     return NextResponse.json(
-      createApiResponse(true, {
+      authService.createApiResponse(true, {
         message: "Feature added successfully",
         id: insertResult.insertedId
       }),
@@ -81,26 +82,29 @@ export async function POST(request: NextRequest) {
     );
     
   } catch (error) {
-    console.error("Error adding feature:", error);
+    // Only log errors in production, not in test environment
+    if (process.env.NODE_ENV !== 'test') {
+      console.error("Error adding feature:", error);
+    }
     
     // Handle specific error types
     if (error instanceof ApiAuthError) {
       return NextResponse.json(
-        createApiResponse(false, null, error.message),
+        authService.createApiResponse(false, null, error.message),
         { status: error.statusCode }
       );
     }
     
     if (error instanceof ApiRequestError) {
       return NextResponse.json(
-        createApiResponse(false, null, error.message, error.details),
+        authService.createApiResponse(false, null, error.message, error.details),
         { status: error.statusCode }
       );
     }
     
     // Handle generic errors
     return NextResponse.json(
-      createApiResponse(false, null, 
+      authService.createApiResponse(false, null, 
         error instanceof Error ? error.message : "Unknown server error"
       ),
       { status: API_CONSTANTS.STATUS_SERVER_ERROR }
