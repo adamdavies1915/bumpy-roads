@@ -39,9 +39,9 @@ export class ApiAuthError extends Error {
  */
 export class ApiRequestError extends Error {
   statusCode: number;
-  details?: any;
+  details?: unknown;
   
-  constructor(message: string, statusCode: number = API_CONSTANTS.STATUS_BAD_REQUEST, details?: any) {
+  constructor(message: string, statusCode: number = API_CONSTANTS.STATUS_BAD_REQUEST, details?: unknown) {
     super(message);
     this.name = "ApiRequestError";
     this.statusCode = statusCode;
@@ -164,8 +164,8 @@ export class AuthService {
     data?: T, 
     error?: string, 
     details?: unknown
-  ): any {
-    const response: any = {
+  ): unknown {
+    const response: Record<string, unknown> = {
       success,
       version: API_CONSTANTS.DEFAULT_API_VERSION
     };

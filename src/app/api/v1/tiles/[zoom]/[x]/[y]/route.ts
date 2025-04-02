@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SphericalMercator } from "@mapbox/sphericalmercator";
 import { drawFeatures } from "@/lib/drawFeatures";
 import { DatabaseService } from '@/app/services/DatabaseService';
-import { authService } from '@/app/services/AuthService';
+import { API_CONSTANTS, ApiAuthError, authService } from '@/app/services/AuthService';
 
 export async function GET(
   request: NextRequest,
@@ -46,14 +46,14 @@ export async function GET(
     // Handle authentication errors
     if (error instanceof ApiAuthError) {
       return NextResponse.json(
-        authService.createApiResponse(false, null, error.message),
+        authService.createApiResponse(false, undefined, error.message),
         { status: error.statusCode }
       );
     }
     
     // Handle generic errors
     return NextResponse.json(
-      authService.createApiResponse(false, null, 
+      authService.createApiResponse(false, undefined, 
         error instanceof Error ? error.message : "Unknown server error"
       ),
       { status: API_CONSTANTS.STATUS_SERVER_ERROR }

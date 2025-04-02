@@ -13,7 +13,7 @@ type FeatureData = {
   deviceId?: string;
   userId?: string;
   additionalData?: Record<string, unknown>;
-  aggregateId?: string;
+  aggregateId?: number;
 };
 
 export class DatabaseService {
@@ -47,7 +47,7 @@ export class DatabaseService {
     
     // Generate aggregateId based on coordinates for resolution filtering
     const [lon, lat] = featureData.loc.coordinates;
-    featureData.aggregateId = generateAggregateId(lon, lat).toString();
+    featureData.aggregateId = generateAggregateId(lon, lat);
     
     // Get collection reference
     const collection = await this.getCollection();
