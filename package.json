@@ -5,7 +5,7 @@
   "scripts": {
     "analyse": "ANALYZE=true npm run build",
     "analyze": "npm run analyse",
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint && prettier --check .",
