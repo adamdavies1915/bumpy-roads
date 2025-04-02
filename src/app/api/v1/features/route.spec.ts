@@ -1,4 +1,3 @@
-// test/route.test.ts
 import { jest } from "@jest/globals";
 import { NextRequest } from "next/server";
 

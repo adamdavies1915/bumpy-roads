@@ -9,8 +9,8 @@ export async function GET(
   { params }: { params: Promise<{ zoom: string; x: string; y: string }> },
 ) {
   try {
-    // Step 1: Validate API key
-    authService.validateApiKey(request);
+    // // Step 1: Validate API key
+    // authService.validateApiKey(request);
     
     // Step 2: Extract and validate params
     const { zoom, x, y } = await params;

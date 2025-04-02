@@ -31,7 +31,21 @@ cd bumpy-roads
 npm install
 ```
 
-3. Set up environment variables:
+3. Install and start MongoDB:
+
+Make sure MongoDB is installed and running on your system. You can install MongoDB by following the [official documentation](https://www.mongodb.com/docs/manual/administration/install-community/).
+
+Check if MongoDB is running:
+```bash
+# Check MongoDB status
+mongosh
+# or 
+mongo
+```
+
+If you can connect to the MongoDB shell, it means MongoDB is running correctly.
+
+4. Set up environment variables:
 
 Create a `.env` file in the root directory with the following variables:
 
@@ -41,13 +55,13 @@ MONGODB_DATABASE_NAME=street_quality_map
 MONGODB_COLLECTION_NAME=features
 ```
 
-4. Initialize the database with sample data:
+5. Initialize the database with sample data:
 
 ```bash
 npm run initDb
 ```
 
-5. Run the development server:
+6. Run the development server:
 
 ```bash
 npm run dev
@@ -119,6 +133,31 @@ type Feature = {
 ```
 
 Each feature represents a data point on the map, with a PPE value that indicates street quality. These points are rendered as colored circles on the map tiles, with colors ranging from green (good quality) to red (poor quality).
+
+## Troubleshooting
+
+### MongoDB Connection Issues
+
+If you encounter issues connecting to MongoDB:
+
+1. **Check if MongoDB is running:**
+   Try connecting to the MongoDB shell:
+   ```bash
+   mongosh
+   # or
+   mongo
+   ```
+
+2. **Verify MongoDB connection string:**
+   Make sure your `.env` file has the correct connection string:
+   ```
+   MONGODB_URI=mongodb://localhost:27017
+   ```
+   
+   If you're using MongoDB with authentication, use:
+   ```
+   MONGODB_URI=mongodb://username:password@localhost:27017
+   ```
 
 ## License
 
