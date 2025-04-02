@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // initDb.js
 require("dotenv").config();
 const { MongoClient } = require("mongodb");
