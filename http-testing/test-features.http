@@ -1,0 +1,12 @@
+### Test Features API - Add Valid Feature
+POST http://localhost:3000/api/v1/features
+Content-Type: application/json
+SRS-APIKey: test-api-key
+
+{
+  "ppe": 5,
+  "loc": {
+    "type": "Point",
+    "coordinates": [-90.0715, 29.9511]
+  }
+}

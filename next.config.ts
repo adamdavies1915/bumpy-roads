@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 import nextBundleAnalyzer from "@next/bundle-analyzer";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+    serverExternalPackages: ['canvas']
+}
 
 const withBundleAnalyzer = nextBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
